@@ -11,38 +11,27 @@ from baseline.Renderer.model import *
 
 
 class Predictor(cog.Predictor):
+
     def setup(self):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         parser = argparse.ArgumentParser(description="Learning to Paint")
-        parser.add_argument(
-            "--max_step", default=80, type=int, help="max length for episode"
-        )
-        parser.add_argument(
-            "--imgid", default=0, type=int, help="set begin number for generated image"
-        )
-        parser.add_argument(
-            "--divide",
-            default=3,
-            type=int,
-            help="divide the target image to get better resolution",
-        )
+        parser.add_argument("--max_step", default=80, type=int, help="max length for episode")
+        parser.add_argument("--imgid", default=0, type=int, help="set begin number for generated image")
+        parser.add_argument("--divide", default=3, type=int, help="divide the target image to get better resolution")
         self.args = parser.parse_args("")
 
     @cog.input("image", type=Path, help="input image")
-    @cog.input(
-        "renderer",
-        type=str,
-        default="default",
-        options=["default", "triangle", "round", "bezierwotrans"],
-        help="type of renderer",
-    )
+    @cog.input("renderer", type=str, default="default", 
+                                    options=["default", "triangle", "round", "bezierwotrans"],
+                                        help="type of renderer")
     def predict(self, image, renderer="default"):
-        width = 128
         self.args.max_step = 80
-        all_images = []
         self.args.img = str(image)
         self.args.actor = "actors/actor_" + renderer + ".pkl"
         self.args.renderer = "renderers/" + renderer + ".pkl"
+
+        width = 128
+        all_images = []
 
         canvas_cnt = self.args.divide * self.args.divide
         T = torch.ones([1, 1, width, width], dtype=torch.float32).to(self.device)
@@ -65,10 +54,9 @@ class Predictor(cog.Predictor):
         Decoder = Decoder.to(self.device).eval()
 
         canvas = torch.zeros([1, 3, width, width]).to(self.device)
+        canvas_size = tuple([width * self.args.divide] * 2)
 
-        patch_img = cv2.resize(
-            img, (width * self.args.divide, width * self.args.divide)
-        )
+        patch_img = cv2.resize(img, canvas_size)
         patch_img = large2small(patch_img, canvas_cnt, self.args, width)
         patch_img = np.transpose(patch_img, (0, 3, 1, 2))
         patch_img = torch.tensor(patch_img).to(self.device).float() / 255.0
@@ -81,39 +69,35 @@ class Predictor(cog.Predictor):
         with torch.no_grad():
             if self.args.divide != 1:
                 self.args.max_step = self.args.max_step // 2
+
             for i in range(self.args.max_step):
                 stepnum = T * i / self.args.max_step
                 actions = actor(torch.cat([canvas, img, stepnum, coord], 1))
                 canvas, res = decode(actions, canvas, Decoder, width)
-                print(
-                    "canvas step {}, L2Loss = {}".format(
-                        i, ((canvas - img) ** 2).mean()
-                    )
-                )
+                print("canvas step {}, L2Loss = {}".format(i, ((canvas - img) ** 2).mean()))
+
                 for j in range(5):
                     img_j = save_img(res[j], origin_shape, self.args, width)
                     all_images.append(img_j)
                     self.args.imgid += 1
+
             if self.args.divide != 1:
                 canvas = canvas[0].detach().cpu().numpy()
                 canvas = np.transpose(canvas, (1, 2, 0))
-                canvas = cv2.resize(
-                    canvas, (width * self.args.divide, width * self.args.divide)
-                )
+                canvas = cv2.resize(canvas, canvas_size)
                 canvas = large2small(canvas, canvas_cnt, self.args, width)
                 canvas = np.transpose(canvas, (0, 3, 1, 2))
                 canvas = torch.tensor(canvas).to(self.device).float()
+
                 coord = coord.expand(canvas_cnt, 2, width, width)
                 T = T.expand(canvas_cnt, 1, width, width)
+
                 for i in range(self.args.max_step):
                     stepnum = T * i / self.args.max_step
                     actions = actor(torch.cat([canvas, patch_img, stepnum, coord], 1))
                     canvas, res = decode(actions, canvas, Decoder, width)
-                    print(
-                        "divided canvas step {}, L2Loss = {}".format(
-                            i, ((canvas - patch_img) ** 2).mean()
-                        )
-                    )
+                    print("divided canvas step {}, L2Loss = {}".format(i, ((canvas - patch_img) ** 2).mean()))
+
                     for j in range(5):
                         img_j = save_img(res[j], origin_shape, self.args, width, True)
                         all_images.append(img_j)
@@ -135,6 +119,7 @@ def decode(x, canvas, Decoder, width):  # b * (10 + 3)
     color_stroke = color_stroke.permute(0, 3, 1, 2)
     stroke = stroke.view(-1, 5, 1, width, width)
     color_stroke = color_stroke.view(-1, 5, 3, width, width)
+
     res = []
     for i in range(5):
         canvas = canvas * (1 - stroke[:, i]) + color_stroke[:, i]
@@ -161,14 +146,15 @@ def large2small(x, canvas_cnt, args, width):
 def smooth(img, args, width):
     def smooth_pix(img, tx, ty):
         if (
-            tx == args.divide * width - 1
+               tx == args.divide * width - 1
             or ty == args.divide * width - 1
             or tx == 0
             or ty == 0
         ):
             return img
+
         img[tx, ty] = (
-            img[tx, ty]
+              img[tx, ty]
             + img[tx + 1, ty]
             + img[tx, ty + 1]
             + img[tx - 1, ty]
