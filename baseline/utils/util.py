@@ -2,7 +2,9 @@ import os
 import torch
 from torch.autograd import Variable
 
+
 USE_CUDA = torch.cuda.is_available()
+
 
 def prRed(prt): print("\033[91m {}\033[00m" .format(prt))
 def prGreen(prt): print("\033[92m {}\033[00m" .format(prt))
@@ -29,26 +31,26 @@ def hard_update(target, source):
     for m1, m2 in zip(target.modules(), source.modules()):
         m1._buffers = m2._buffers.copy()
     for target_param, param in zip(target.parameters(), source.parameters()):
-            target_param.data.copy_(param.data)
+        target_param.data.copy_(param.data)
 
 def get_output_folder(parent_dir, env_name):
-    """Return save folder.
+    """
+    Return save folder.
 
-    Assumes folders in the parent_dir have suffix -run{run
-    number}. Finds the highest run number and sets the output folder
-    to that number + 1. This is just convenient so that if you run the
-    same script multiple times tensorboard can plot all of the results
-    on the same plots with different names.
+    Assumes folders in the parent_dir have suffix -run{run number}. 
+    Finds the highest run number and sets the output folder to that number + 1. 
+    This is just convenient so that if you run the same script multiple times, 
+    tensorboard can plot all of the results on the same plots with different names.
 
     Parameters
     ----------
     parent_dir: str
-      Path of the directory containing all experiment runs.
+        Path of the directory containing all experiment runs.
 
     Returns
     -------
     parent_dir/run_dir
-      Path to this run's save directory.
+        Path to this run's save directory.
     """
     os.makedirs(parent_dir, exist_ok=True)
     experiment_id = 0
@@ -67,3 +69,4 @@ def get_output_folder(parent_dir, env_name):
     parent_dir = parent_dir + '-run{}'.format(experiment_id)
     os.makedirs(parent_dir, exist_ok=True)
     return parent_dir
+

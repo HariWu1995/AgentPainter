@@ -1,20 +1,22 @@
 import sys
 import json
-import torch
-import numpy as np
 import argparse
-import torchvision.transforms as transforms
+
+from PIL import Image
 import cv2
+import numpy as np
+
+import torch
+from torchvision import transforms, 
+
 from DRL.ddpg import decode
 from utils.util import *
-from PIL import Image
-from torchvision import transforms, utils
+
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-aug = transforms.Compose(
-            [transforms.ToPILImage(),
-             transforms.RandomHorizontalFlip(),
-             ])
+aug = transforms.Compose([transforms.ToPILImage(), 
+                          transforms.RandomHorizontalFlip()])
 
 width = 128
 convas_area = width * width
@@ -24,7 +26,9 @@ img_test = []
 train_num = 0
 test_num = 0
 
+
 class Paint:
+
     def __init__(self, batch_size, max_step):
         self.batch_size = batch_size
         self.max_step = max_step
@@ -35,12 +39,12 @@ class Paint:
     def load_data(self):
         # CelebA
         global train_num, test_num
-        for i in range(200000):            
+        for i in range(200_000):            
             img_id = '%06d' % (i + 1)
             try:
                 img = cv2.imread('../data/img_align_celeba/' + img_id + '.jpg', cv2.IMREAD_UNCHANGED)
                 img = cv2.resize(img, (width, width))
-                if i > 2000:                
+                if i > 2_000:                
                     train_num += 1
                     img_train.append(img)
                 else:

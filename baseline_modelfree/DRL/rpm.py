@@ -4,7 +4,9 @@ import random
 import torch
 import pickle as pickle
 
+
 class rpm(object):
+
     # replay memory
     def __init__(self, buffer_size):
         self.buffer_size = buffer_size
@@ -41,3 +43,4 @@ class rpm(object):
                 k = torch.stack(tuple(item[i] for item in batch), dim=0)
                 res.append(k.to(device))
             return res[0], res[1], res[2], res[3], res[4]
+

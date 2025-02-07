@@ -1,10 +1,13 @@
 # from collections import deque
-import numpy as np
 import random
+import pickle
+
+import numpy as np
 import torch
-import pickle as pickle
+
 
 class rpm(object):
+
     # replay memory
     def __init__(self, buffer_size):
         self.buffer_size = buffer_size

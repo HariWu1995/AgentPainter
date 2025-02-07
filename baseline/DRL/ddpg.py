@@ -1,14 +1,18 @@
 import numpy as np
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import Adam, SGD
+
 from Renderer.model import *
 from DRL.rpm import rpm
 from DRL.actor import *
 from DRL.critic import *
 from DRL.wgan import *
 from utils.util import *
+
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 coord = torch.zeros([1, 2, 128, 128])
@@ -23,6 +27,7 @@ criterion = nn.MSELoss()
 Decoder = FCN()
 Decoder.load_state_dict(torch.load('../renderer.pkl'))
 
+
 def decode(x, canvas): # b * (10 + 3)
     x = x.view(-1, 10 + 3)
     stroke = 1 - Decoder(x[:, :10])
@@ -36,10 +41,13 @@ def decode(x, canvas): # b * (10 + 3)
         canvas = canvas * (1 - stroke[:, i]) + color_stroke[:, i]
     return canvas
 
+
 def cal_trans(s, t):
     return (s.transpose(0, 3) * t).transpose(0, 3)
-    
+
+
 class DDPG(object):
+
     def __init__(self, batch_size=64, env_batch=1, max_step=40, \
                  tau=0.001, discount=0.9, rmsize=800, \
                  writer=None, resume=None, output_path=None):
@@ -98,10 +106,13 @@ class DDPG(object):
         gt = state[:, 3 : 6].float() / 255
         canvas0 = state[:, :3].float() / 255
         canvas1 = decode(action, canvas0)
+        
         gan_reward = cal_reward(canvas1, gt) - cal_reward(canvas0, gt)
         # L2_reward = ((canvas0 - gt) ** 2).mean(1).mean(1).mean(1) - ((canvas1 - gt) ** 2).mean(1).mean(1).mean(1)        
+        
         coord_ = coord.expand(state.shape[0], 2, 128, 128)
         merged_state = torch.cat([canvas0, canvas1, gt, (T + 1).float() / self.max_step, coord_], 1)
+        
         # canvas0 is not necessarily added
         if target:
             Q = self.critic_target(merged_state)
@@ -174,10 +185,12 @@ class DDPG(object):
         with torch.no_grad():
             action = self.play(state)
             action = to_numpy(action)
+
         if noise_factor > 0:        
             action = self.noise_action(noise_factor, state, action)
         self.train()
         self.action = action
+
         if return_fix:
             return action
         return self.action

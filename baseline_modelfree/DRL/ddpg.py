@@ -3,12 +3,15 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import Adam, SGD
+
 from Renderer.model import *
 from DRL.rpm import rpm
 from DRL.actor import *
 from DRL.critic import *
 from DRL.wgan import *
 from utils.util import *
+
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 coord = torch.zeros([1, 2, 128, 128])
@@ -23,6 +26,7 @@ criterion = nn.MSELoss()
 Decoder = FCN()
 Decoder.load_state_dict(torch.load('../renderer.pkl'))
 
+
 def decode(x, canvas): # b * (10 + 3)
     x = x.view(-1, 10 + 3)
     stroke = 1 - Decoder(x[:, :10])
@@ -36,13 +40,16 @@ def decode(x, canvas): # b * (10 + 3)
         canvas = canvas * (1 - stroke[:, i]) + color_stroke[:, i]
     return canvas
 
+
 def cal_trans(s, t):
     return (s.transpose(0, 3) * t).transpose(0, 3)
-    
+
+
 class DDPG(object):
+
     def __init__(self, batch_size=64, env_batch=1, max_step=40, \
-                 tau=0.001, discount=0.9, rmsize=800, \
-                 writer=None, resume=None, output_path=None):
+                       tau=0.001, discount=0.9, rmsize=800, \
+                       writer=None, resume=None, output_path=None):
 
         self.max_step = max_step
         self.env_batch = env_batch
@@ -99,8 +106,10 @@ class DDPG(object):
         canvas0 = state[:, :3].float() / 255
         with torch.no_grad(): # model free
             canvas1 = decode(action, canvas0)
+
         gan_reward = cal_reward(canvas1, gt) - cal_reward(canvas0, gt) # (batchsize, 64)
         # L2_reward = ((canvas0 - gt) ** 2).mean(1).mean(1).mean(1) - ((canvas1 - gt) ** 2).mean(1).mean(1).mean(1)        
+        
         coord_ = coord.expand(state.shape[0], 2, 128, 128)
         merged_state = torch.cat([canvas0, gt, (T + 1).float() / self.max_step, coord_], 1)
         if target:
@@ -195,8 +204,8 @@ class DDPG(object):
     def save_model(self, path):
         self.actor.cpu()
         self.critic.cpu()
-        torch.save(self.actor.state_dict(),'{}/actor.pkl'.format(path))
-        torch.save(self.critic.state_dict(),'{}/critic.pkl'.format(path))
+        torch.save(self.actor.state_dict(), '{}/actor.pkl'.format(path))
+        torch.save(self.critic.state_dict(), '{}/critic.pkl'.format(path))
         save_gan(path)
         self.choose_device()
 
@@ -218,3 +227,4 @@ class DDPG(object):
         self.actor_target.to(device)
         self.critic.to(device)
         self.critic_target.to(device)
+
